@@ -1,0 +1,6 @@
+key,value
+package,F
+repository,repository.json
+test_mode,true
+output,../output/F.png
+filter,
