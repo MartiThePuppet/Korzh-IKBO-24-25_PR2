@@ -11,8 +11,6 @@ python -m unittest discover -s tests -v
 
 На Windows можно использовать `run.bat --config config.csv`.
 
-Если Python не установлен, установите Python 3.10+ и включите добавление в PATH. Для проверки в текущем окружении использован переносимый интерпретатор `C:\Users\User\AppData\Local\Temp\opencode\python313\python.exe`.
-
 ## Конфигурация
 
 CSV в UTF-8, две колонки `key,value`:
