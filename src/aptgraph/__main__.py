@@ -4,8 +4,9 @@ import argparse
 import sys
 
 from .config import Config
+from .repository import AptRepository
 
-STAGES = ("config",)
+STAGES = ("config", "data",)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -13,7 +14,7 @@ def _parser() -> argparse.ArgumentParser:
         description="Вариант 12: граф зависимостей APT"
     )
     parser.add_argument("--config", default="config.csv")
-    parser.add_argument("--stage", choices=STAGES, default="config")
+    parser.add_argument("--stage", choices=STAGES, default="data")
     return parser
 
 
@@ -29,10 +30,26 @@ def _show_config(config: Config) -> None:
         print(f"{key}={value}")
 
 
+def _load_packages(config: Config) -> dict[str, list[str]]:
+    packages = AptRepository(config.repository).load()
+    if config.package not in packages:
+        raise ValueError(f"Пакет не найден: {config.package}")
+    return packages
+
+
+def _show_data(packages: dict[str, list[str]], package: str) -> None:
+    print("Прямые зависимости:")
+    print("\n".join(packages[package]) or "(нет)")
+
+
 def _run(args: argparse.Namespace) -> None:
     config = Config.from_csv(args.config)
     if args.stage == "config":
         _show_config(config)
+        return
+    packages = _load_packages(config)
+    if args.stage == "data":
+        _show_data(packages, config.package)
         return
 
 
