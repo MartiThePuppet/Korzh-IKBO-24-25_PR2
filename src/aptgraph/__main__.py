@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 import sys
+from subprocess import SubprocessError
 
 from .config import Config
 from .graph import Graph, build_graph, reverse_dependencies
+from .render import mermaid, save_png
 from .repository import AptRepository
 
-STAGES = ("config", "data", "graph", "reverse",)
+STAGES = ("config", "data", "graph", "reverse", "visualize", "all")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -15,7 +17,12 @@ def _parser() -> argparse.ArgumentParser:
         description="Вариант 12: граф зависимостей APT"
     )
     parser.add_argument("--config", default="config.csv")
-    parser.add_argument("--stage", choices=STAGES, default="reverse")
+    parser.add_argument("--stage", choices=STAGES, default="all")
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Не отправлять граф Kroki, требуется mmdc",
+    )
     return parser
 
 
@@ -66,6 +73,15 @@ def _show_graph(packages: dict[str, list[str]], config: Config) -> Graph:
     return graph
 
 
+def _show_visualization(
+    graph: Graph, config: Config, config_path: str, offline: bool
+) -> None:
+    output = config.resolved_output(config_path)
+    save_png(mermaid(graph, config.package), output, offline)
+    print(f"Mermaid: {output.with_suffix('.mmd')}")
+    print(f"PNG: {output}")
+
+
 def _run(args: argparse.Namespace) -> None:
     config = Config.from_csv(args.config)
     if args.stage == "config":
@@ -78,13 +94,15 @@ def _run(args: argparse.Namespace) -> None:
     if args.stage == "reverse":
         _show_reverse(packages, config)
         return
-    _show_graph(packages, config)
+    graph = _show_graph(packages, config)
+    if args.stage in {"visualize", "all"}:
+        _show_visualization(graph, config, args.config, args.offline)
 
 
 def main(argv: list[str] | None = None) -> int:
     try:
         _run(_parser().parse_args(argv))
-    except (OSError, ValueError, RuntimeError) as exc:
+    except (OSError, ValueError, RuntimeError, SubprocessError) as exc:
         print(f"Ошибка: {exc}", file=sys.stderr)
         return 1
     return 0
