@@ -4,10 +4,10 @@ import argparse
 import sys
 
 from .config import Config
-from .graph import Graph, build_graph
+from .graph import Graph, build_graph, reverse_dependencies
 from .repository import AptRepository
 
-STAGES = ("config", "data", "graph",)
+STAGES = ("config", "data", "graph", "reverse",)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -15,7 +15,7 @@ def _parser() -> argparse.ArgumentParser:
         description="Вариант 12: граф зависимостей APT"
     )
     parser.add_argument("--config", default="config.csv")
-    parser.add_argument("--stage", choices=STAGES, default="graph")
+    parser.add_argument("--stage", choices=STAGES, default="reverse")
     return parser
 
 
@@ -46,6 +46,15 @@ def _show_data(packages: dict[str, list[str]], package: str) -> None:
     print("\n".join(packages[package]) or "(нет)")
 
 
+def _show_reverse(packages: dict[str, list[str]], config: Config) -> None:
+    graph = reverse_dependencies(
+        packages, config.package, config.package_filter
+    )
+    names = (name for name in graph.edges if name != config.package)
+    print("Обратные зависимости (прямые и транзитивные):")
+    print("\n".join(names) or "(нет)")
+
+
 def _show_graph(packages: dict[str, list[str]], config: Config) -> Graph:
     graph = build_graph(packages, config.package, config.package_filter)
     for name, dependencies in graph.edges.items():
@@ -65,6 +74,9 @@ def _run(args: argparse.Namespace) -> None:
     packages = _load_packages(config, args.config)
     if args.stage == "data":
         _show_data(packages, config.package)
+        return
+    if args.stage == "reverse":
+        _show_reverse(packages, config)
         return
     _show_graph(packages, config)
 

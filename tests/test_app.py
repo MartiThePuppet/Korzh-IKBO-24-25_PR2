@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from src.aptgraph.config import Config, ConfigError
-from src.aptgraph.graph import build_graph
+from src.aptgraph.graph import build_graph, reverse_dependencies
 from src.aptgraph.repository import AptRepository
 
 
@@ -29,6 +29,11 @@ class AppTests(unittest.TestCase):
         graph = build_graph(packages, "A", "D")
         self.assertNotIn("D", graph.edges)
         self.assertEqual(graph.edges["A"], ["B", "C"])
+
+    def test_reverse(self):
+        packages = AptRepository(ROOT / "examples/repository.json", True).load()
+        graph = reverse_dependencies(packages, "D")
+        self.assertEqual(set(graph.edges), {"D", "B", "C", "A", "X", "Y"})
 
     def test_invalid_config(self):
         with tempfile.TemporaryDirectory() as temp:

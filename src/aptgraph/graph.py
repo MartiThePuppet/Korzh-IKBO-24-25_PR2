@@ -50,3 +50,18 @@ def build_graph(
     if not _is_excluded(root, excluded):
         _visit(root, packages, excluded, {}, graph)
     return graph
+
+
+def _reverse_edges(packages: dict[str, list[str]]) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {name: [] for name in packages}
+    for name, dependencies in packages.items():
+        for dependency in dependencies:
+            result.setdefault(dependency, []).append(name)
+    return result
+
+
+def reverse_dependencies(
+    packages: dict[str, list[str]], root: str, excluded: str = ""
+) -> Graph:
+    """Build the graph of direct and transitive reverse dependencies."""
+    return build_graph(_reverse_edges(packages), root, excluded)
