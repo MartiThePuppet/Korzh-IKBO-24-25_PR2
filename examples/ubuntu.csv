@@ -1,0 +1,6 @@
+key,value
+package,hello
+repository,https://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/Packages.gz
+test_mode,false
+output,../output/hello.png
+filter,
