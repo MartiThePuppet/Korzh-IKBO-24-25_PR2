@@ -1,0 +1,42 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from src.aptgraph.config import Config, ConfigError
+from src.aptgraph.graph import build_graph
+from src.aptgraph.repository import AptRepository
+
+
+ROOT = Path(__file__).parents[1]
+
+
+class AppTests(unittest.TestCase):
+    def test_config_and_repository(self):
+        config_path = ROOT / "examples/demo.csv"
+        config = Config.from_csv(config_path)
+        repository = config.resolved_repository(config_path)
+        packages = AptRepository(repository, config.test_mode).load()
+        self.assertEqual(packages["A"], ["B", "C"])
+
+    def test_recursive_dfs_and_cycle(self):
+        packages = AptRepository(ROOT / "examples/repository.json", True).load()
+        graph = build_graph(packages, "F")
+        self.assertEqual(set(graph.edges), {"F", "G", "H"})
+        self.assertIn(("H", "F"), graph.cycles)
+
+    def test_filter(self):
+        packages = AptRepository(ROOT / "examples/repository.json", True).load()
+        graph = build_graph(packages, "A", "D")
+        self.assertNotIn("D", graph.edges)
+        self.assertEqual(graph.edges["A"], ["B", "C"])
+
+    def test_invalid_config(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "bad.csv"
+            path.write_text("key,value\npackage,A\n", encoding="utf-8")
+            with self.assertRaises(ConfigError):
+                Config.from_csv(path)
+
+
+if __name__ == "__main__":
+    unittest.main()

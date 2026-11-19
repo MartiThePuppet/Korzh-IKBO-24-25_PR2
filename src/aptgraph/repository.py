@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gzip
+import json
 import lzma
 import re
 import urllib.request
@@ -13,6 +14,33 @@ XZ_SIGNATURE = b"\xfd7zXZ\x00"
 
 class RepositoryError(RuntimeError):
     """Repository data could not be loaded or parsed."""
+
+
+def _is_test_name(value: object) -> bool:
+    return isinstance(value, str) and bool(re.fullmatch(r"[A-Z]+", value))
+
+
+def _validate_test_graph(raw: object) -> None:
+    if not isinstance(raw, dict):
+        raise ValueError("Expected a JSON object")
+    for name, dependencies in raw.items():
+        if not _is_test_name(name) or not isinstance(dependencies, list):
+            raise ValueError("Invalid test package entry")
+        if not all(map(_is_test_name, dependencies)):
+            raise ValueError("Invalid test dependency name")
+
+
+def _read_test_graph(path: Path) -> dict[str, list[str]]:
+    if not path.is_file():
+        raise RepositoryError(f"Тестовый репозиторий не найден: {path}")
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        _validate_test_graph(raw)
+    except (OSError, ValueError) as exc:
+        raise RepositoryError(
+            "Некорректный JSON тестового репозитория"
+        ) from exc
+    return raw
 
 
 def _read_remote_index(url: str) -> bytes:
@@ -95,14 +123,18 @@ def _select_dependency(
 
 
 class AptRepository:
-    """Load dependencies from a Debian Packages index."""
+    """Load dependencies from a JSON fixture or a Debian Packages index."""
 
-    def __init__(self, source: str | Path):
+    def __init__(self, source: str | Path, test_mode: bool = False):
         self.source = str(source)
+        self.test_mode = test_mode
         self.packages: dict[str, list[str]] = {}
 
     def load(self) -> dict[str, list[str]]:
-        self.packages = self._parse_packages(self._read_source())
+        if self.test_mode:
+            self.packages = _read_test_graph(Path(self.source))
+        else:
+            self.packages = self._parse_packages(self._read_source())
         return self.packages
 
     def _read_source(self) -> bytes:
